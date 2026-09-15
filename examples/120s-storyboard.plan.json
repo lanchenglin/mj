@@ -1,0 +1,62 @@
+{
+  "schema_version": "mj.planning-fixture.v1",
+  "kind": "planning_example",
+  "status": "not_generated",
+  "paid_execution_allowed": false,
+  "render_ready": false,
+  "note": "原创虚构故事与分镜结构示例；不是用户已选定题材。没有真实图片、视频、TTS、账单或审核结果；时间均为规划值。生产系统不得把此格式当作获批的 GenerationSpec 或 TimelineSpec 执行。",
+  "title": "借来的光",
+  "logline": "雨夜修理铺停电，嫌旧灯无用的年轻学徒在老人帮助下修亮它，最后决定把这束光留在门口。",
+  "fps": {"num": 30, "den": 1},
+  "target_duration_seconds": 120,
+  "total_frames": 3600,
+  "frame_interval_convention": "[start_frame, end_frame)",
+  "resolution": {"width": 1080, "height": 1920},
+  "audio_sample_rate": 48000,
+  "measured_audio_duration_seconds": null,
+  "selected_asset_versions": [],
+  "characters": [
+    {"id": "C01", "name": "阿澄", "role": "年轻修理学徒", "appearance_anchors": ["短黑发", "蓝色工作外套", "右胸黄色布标"], "voice_profile_status": "not_selected"},
+    {"id": "C02", "name": "林伯", "role": "老修理师", "appearance_anchors": ["灰白短发", "圆框眼镜", "棕色围裙"], "voice_profile_status": "not_selected"}
+  ],
+  "scenes": [
+    {"id": "SC01", "name": "旧修理铺内", "anchors": ["木工作台", "门在工作台右侧", "室内停电，雨夜"]},
+    {"id": "SC02", "name": "修理铺门口", "anchors": ["同一扇木门", "门外两级台阶", "门右侧有挂钩", "雨夜"]}
+  ],
+  "props": [
+    {"id": "P01", "name": "旧电池手提灯", "initial_state": "抽屉中，触点脏污，未点亮", "continuity_rule": "打开、清洁、合上、点亮、携带、悬挂依次可追踪；外部仍停电"},
+    {"id": "P02", "name": "阿澄的手机", "initial_state": "电量很低", "continuity_rule": "屏幕数字由后期可控叠加；关机后不无故再次亮屏"}
+  ],
+  "sample_plan": {
+    "shot_ids": ["SH07", "SH08", "SH09"],
+    "source_start_frame": 990,
+    "source_end_frame": 1440,
+    "sample_total_frames": 450,
+    "purpose": "15秒连续修灯样片：同一角色跨景别、可见手部动作、双人协作、道具状态承接；另叠加真实中文配音与字幕后验收。",
+    "requires_real_subject_motion": true,
+    "approval_status": "not_reviewed"
+  },
+  "state_semantics": "state_before/state_after为本镜头需检查的局部连续性事实，不是实际识别结果；尚无任何批准参考图或生成素材。",
+  "shots": [
+    {"id":"SH01","scene_id":"SC01","character_ids":["C01","C02"],"start_frame":0,"end_frame":120,"motion_requirement":"subject_action","framing":"中景","action":"室内灯突然熄灭，阿澄停下收拾动作抬头，林伯在工作台后停住。","state_before":"工作台有人，室内有电","state_after":"停电，人物站位未交换"},
+    {"id":"SH02","scene_id":"SC01","character_ids":["C01"],"start_frame":120,"end_frame":270,"motion_requirement":"subject_action","framing":"脸部与手机近景","action":"阿澄拿出手机照明，看到电量告急，皱眉看向门外。","state_before":"阿澄在工作台左侧","state_after":"手机在阿澄右手，屏幕低电量"},
+    {"id":"SH03","scene_id":"SC02","character_ids":["C01"],"start_frame":270,"end_frame":450,"motion_requirement":"subject_action","framing":"门内向外的中景","action":"阿澄把手机收回衣袋，走到门口看雨水淹过台阶，又回头。","state_before":"门外下雨，手机在右手","state_after":"手机已入袋，阿澄停在门口，没有跨过台阶"},
+    {"id":"SH04","scene_id":"SC01","character_ids":["C01","C02"],"start_frame":450,"end_frame":600,"motion_requirement":"subject_action","framing":"双人中景","action":"林伯从抽屉拿出旧灯，递给回到工作台旁的阿澄。","state_before":"P01在抽屉中，未亮","state_after":"P01在阿澄左手，背盖闭合"},
+    {"id":"SH05","scene_id":"SC01","character_ids":["C01"],"start_frame":600,"end_frame":810,"motion_requirement":"subject_action","framing":"人物与灯的近景","action":"阿澄按开关，灯闪一下又暗下；他抬眼看林伯。","state_before":"P01在阿澄左手","state_after":"P01仍未稳定点亮，位置不变"},
+    {"id":"SH06","scene_id":"SC01","character_ids":["C01","C02"],"start_frame":810,"end_frame":990,"motion_requirement":"subject_action","framing":"双人中近景","action":"阿澄摇头准备放下灯，林伯指向背面的扣子，示意先打开看看。","state_before":"P01背盖闭合","state_after":"灯放在工作台上，扣子朝向阿澄"},
+    {"id":"SH07","scene_id":"SC01","character_ids":["C01"],"start_frame":990,"end_frame":1140,"motion_requirement":"subject_action","framing":"包含脸与手的近景","action":"阿澄打开灯的背盖，俯身查看脏污触点。","state_before":"P01在工作台上，背盖闭合","state_after":"P01背盖打开，触点待清洁"},
+    {"id":"SH08","scene_id":"SC01","character_ids":["C01"],"start_frame":1140,"end_frame":1290,"motion_requirement":"subject_action","framing":"工作台侧面中近景","action":"阿澄用小布片擦净触点，完整呈现拿布、擦拭和停手。","state_before":"背盖打开，触点脏污","state_after":"触点已清洁，布片放到台面，背盖仍打开"},
+    {"id":"SH09","scene_id":"SC01","character_ids":["C01","C02"],"start_frame":1290,"end_frame":1440,"motion_requirement":"subject_action","framing":"双人半身中景","action":"林伯扶稳灯身，阿澄合上背盖，再把灯拿到左手。","state_before":"P01在台面，背盖打开","state_after":"背盖闭合，林伯松手，P01在阿澄左手"},
+    {"id":"SH10","scene_id":"SC01","character_ids":["C01","C02"],"start_frame":1440,"end_frame":1710,"motion_requirement":"subject_action","framing":"由灯到两人表情的中近景","action":"阿澄再次按下开关，暖光稳定亮起；他与林伯对视，神情由怀疑变成惊喜。","state_before":"P01闭合，尚未亮起","state_after":"P01稳定亮起，仍由阿澄左手提着，屋内电力未恢复"},
+    {"id":"SH11","scene_id":"SC02","character_ids":["C01","C02"],"start_frame":1710,"end_frame":1920,"motion_requirement":"subject_action","framing":"门口双人中景","action":"阿澄提灯走到门口，林伯跟到门内，两人看向雨巷。","state_before":"P01在阿澄左手且亮着","state_after":"阿澄在门前，林伯在其后，灯仍亮"},
+    {"id":"SH12","scene_id":"SC02","character_ids":["C01"],"start_frame":1920,"end_frame":2070,"motion_requirement":"subject_action","framing":"人与台阶同框","action":"阿澄降低手提灯，光照出积水下的两级台阶，他停下脚步。","state_before":"P01在左手，台阶昏暗","state_after":"台阶可见，阿澄未踏入积水"},
+    {"id":"SH13","scene_id":"SC02","character_ids":["C01","C02"],"start_frame":2070,"end_frame":2250,"motion_requirement":"subject_action","framing":"门框与双人中景","action":"林伯扶着门，阿澄把亮着的灯挂到门右侧挂钩，确认挂稳再松手。","state_before":"P01由阿澄左手提着","state_after":"P01固定在挂钩，两人的手都已离开灯"},
+    {"id":"SH14","scene_id":"SC02","character_ids":[],"start_frame":2250,"end_frame":2460,"motion_requirement":"camera","framing":"灯、台阶与雨水的环境镜头","action":"镜头缓缓下移，暖光覆盖台阶，雨滴在亮处清晰可见。","state_before":"P01挂在门右侧且亮着","state_after":"挂灯位置不变，台阶被照亮"},
+    {"id":"SH15","scene_id":"SC01","character_ids":["C01"],"start_frame":2460,"end_frame":2640,"motion_requirement":"subject_action","framing":"手机与人物近景","action":"阿澄退回门内拿出手机，屏幕熄灭；他看向门口的灯，轻轻笑了。","state_before":"手机在衣袋中，电量很低","state_after":"手机已关机，在右手；P01仍在门外挂钩"},
+    {"id":"SH16","scene_id":"SC01","character_ids":["C01","C02"],"start_frame":2640,"end_frame":2790,"motion_requirement":"subject_action","framing":"双人中景","action":"阿澄收好手机，林伯递过干布，他接过来擦掉手上的污迹。","state_before":"手机在阿澄右手且关机","state_after":"手机回到衣袋，干布在阿澄手中，灯未移动"},
+    {"id":"SH17","scene_id":"SC02","character_ids":["C01"],"start_frame":2790,"end_frame":3000,"motion_requirement":"subject_action","framing":"门口半身中景","action":"阿澄再走到门口，轻轻调整灯的角度，让光同时照到台阶和门牌。","state_before":"P01悬挂且亮着","state_after":"P01仍悬挂，朝向稍向外，不被取下"},
+    {"id":"SH18","scene_id":"SC02","character_ids":["C01","C02"],"start_frame":3000,"end_frame":3180,"motion_requirement":"subject_action","framing":"双人中景","action":"林伯走到阿澄身旁，两人在灯下站定，听雨声渐轻。","state_before":"阿澄在门口，林伯在门内","state_after":"两人并肩，衣服和相对身高保持一致"},
+    {"id":"SH19","scene_id":"SC02","character_ids":[],"start_frame":3180,"end_frame":3390,"motion_requirement":"camera","framing":"灯背面刻字特写","action":"镜头停留在灯背面的旧字：修好，留给需要的人。文字后期叠加，不依赖视频模型生成。","state_before":"P01挂在门右侧且稳定发光","state_after":"道具与光线状态不变"},
+    {"id":"SH20","scene_id":"SC02","character_ids":["C01","C02"],"start_frame":3390,"end_frame":3600,"motion_requirement":"camera","framing":"门口拉远收束","action":"镜头从两人与旧灯缓缓拉远，保留灯照亮台阶的画面，故事自然收束。","state_before":"两人并肩，旧灯悬挂","state_after":"持续停电，但门前有稳定灯光；不追加无关片尾拖时长"}
+  ]
+}

@@ -1,0 +1,49 @@
+# Secrets and private runtime configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials/
+secrets/
+
+# User projects, generated media, databases and logs
+runtime/
+storage/
+outputs/
+exports/
+user_projects/
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.log
+*.mp4
+*.mov
+*.webm
+*.wav
+*.mp3
+*.m4a
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# JavaScript and builds
+node_modules/
+dist/
+build/
+.next/
+coverage/
+
+# OS and editor local files
+.DS_Store
+Thumbs.db
+.idea/
