@@ -1,0 +1,89 @@
+{
+  "recorded_date": "2026-09-16",
+  "implementation_version": "0.4.0",
+  "base_commit": "aaf7a2cb44521c4c616ac863cfcb220c0f44ec0f",
+  "pytest": {
+    "passed": 175,
+    "failed": 0,
+    "new_api_tests": 69,
+    "summary": "175 passed in 27.96s"
+  },
+  "syntax": {
+    "app.js": "passed",
+    "cloud-ui.js": "passed"
+  },
+  "browser": {
+    "transport": "isolated in-process component bridge; live HTTP/TLS/CSP NOT verified",
+    "page_errors": [],
+    "external_requests": 0,
+    "paid_calls": 0,
+    "mobile_overflow": false,
+    "tested": [
+      "Qwen form and project-aspect defaults",
+      "image dry-run",
+      "H3 exclusive input forms",
+      "independent voice form",
+      "per-provider type selection",
+      "settings checks",
+      "390px layout"
+    ]
+  },
+  "comfy_browser": {
+    "transport": "in-process component bridge (HTTP/CSP NOT verified)",
+    "page_errors": [],
+    "external_requests": 0,
+    "gpu_generation_calls": 0,
+    "comfyui_enabled": false,
+    "mobile_overflow": false,
+    "tested": [
+      "login through TestClient",
+      "configured workflows",
+      "reference selection fields",
+      "inpaint mask fields",
+      "hidden cloud budget",
+      "text dry-run",
+      "provider status",
+      "mobile layout"
+    ]
+  },
+  "render120": {
+    "task_id": "decef2f76bc04809aeb8dd4d3d71da65",
+    "qa": {
+      "technical_pass": true,
+      "frames": 3600,
+      "samples": 5760000,
+      "fps": 30,
+      "duration_seconds": 120.0,
+      "measured_video_duration_seconds": 120.0,
+      "mock": true,
+      "creative_review": "pending",
+      "subtitle_timing": "measured-audio-duration-proportional; human review required",
+      "real_model_quality_verified": false
+    },
+    "paid_calls": 0
+  },
+  "render15": {
+    "fixture": "test_15s_native_protocol_to_render",
+    "frames": 450,
+    "samples": 720000,
+    "paid_calls": 0,
+    "real_model_quality_verified": false,
+    "note": "Native API methods intercepted; generated color/motion signals and tones, not actual AI providers"
+  },
+  "wheel": "Built successfully; package data verification recorded separately",
+  "external_paid_calls": 0,
+  "gpu_calls": 0,
+  "not_verified": [
+    "real Qwen/MiniMax accounts and production HTTP contracts",
+    "real Chinese voice and character/motion quality",
+    "PostgreSQL concurrent failure injection",
+    "Docker deployment and production TLS/CSP",
+    "provider invoices and true costs",
+    "all original design acceptance requirements"
+  ],
+  "test_issues": [
+    "One new fixture used an invalid short idempotency key; corrected the fixture, not the gate.",
+    "Combined browser+pytest command exceeded execution time; separate full pytest run finished successfully."
+  ],
+  "git_status": "This test record does not establish Git publication; verify the remote branch ref separately."
+}

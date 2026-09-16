@@ -69,7 +69,7 @@ with tempfile.TemporaryDirectory(prefix='mj-browser-') as temp:
                     page.set_content('<html lang="zh-CN"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="app"></div><div id="toast" role="status" hidden></div><dialog id="modal"></dialog></body></html>')
                     page.add_style_tag(content=(ROOT/'mj/web/style.css').read_text())
                     page.add_script_tag(content='window.testResponses=[];window.fetch=async(path,opts={})=>{const r=await window.mjTestBridge(path,opts.method||"GET",opts.body||null,opts.headers||{});window.testResponses.push({path,method:opts.method||"GET",status:r.status,body:r.body});return new Response(r.body,{status:r.status,headers:r.headers})}')
-                    page.add_script_tag(type='module',content=(ROOT/'mj/web/app.js').read_text())
+                    page.add_script_tag(type='module',content=((ROOT/'mj/web/cloud-ui.js').read_text().replace('export const ', 'const ').replace('export function ', 'function ')+'\n'+(ROOT/'mj/web/app.js').read_text().split('\n',1)[1]))
                 else:
                     response=page.goto(origin)
                     assert "script-src 'self'" in response.headers['content-security-policy']

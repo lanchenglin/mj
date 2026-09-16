@@ -245,16 +245,28 @@ def render(snapshot: dict, store: Store, directory: Path, timeout: int = 1800) -
         command(args, timeout)
         clips.append(target)
         cap_duration = shot.frames/spec.fps
+        if shot.original_audio == "keep":
+            if shot.audio_asset:
+                raise ValueError(f"{shot.id}: choose native video audio OR independent speech, never both")
+            if kind != "video" or not asset["info"].get("audio"):
+                raise ValueError(f"{shot.id}: selected video has no original audio")
+            audio_events.append(dict(asset_id=shot.video_asset,start_sample=round(offset*48000/spec.fps),
+                source_in_sample=round(shot.source_in_frames*48000/spec.fps),samples=round(shot.frames*48000/spec.fps),
+                gain=shot.original_audio_gain,bus="sfx",fade_samples=0))
         if shot.audio_asset:
             a = assets[shot.audio_asset]
             if a["kind"] != "audio" or (not animatic and a["review"] != "accepted"):
                 raise ValueError("Speech must be reviewed audio")
             any_mock |= a["mock"]
+            from .contracts import fingerprint
+            text_hash=a["info"].get("generation",{}).get("narration_hash")
+            if text_hash and text_hash!=fingerprint(shot.narration):
+                raise ValueError(f"{shot.id}: selected narration belongs to older text; regenerate or reselect speech")
             cap_duration = a["info"]["duration"]
             if cap_duration > shot.frames/spec.fps + 0.02:
                 raise ValueError(f"{shot.id}: narration is longer than shot; revise timing")
             audio_events.append(dict(asset_id=shot.audio_asset, start_sample=round(offset*48000/spec.fps), source_in_sample=0, samples=min(round(cap_duration*48000), round(shot.frames*48000/spec.fps)), gain=1, bus="speech", fade_samples=0))
-        elif shot.narration and not animatic:
+        elif shot.narration and not animatic and shot.original_audio != "keep":
             raise ValueError(f"{shot.id}: narration has no audio asset")
         chunks = subtitle_chunks(shot.narration, ws.subtitles.line_chars)
         chars = max(1, sum(len(c) for c in chunks))

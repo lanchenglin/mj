@@ -150,8 +150,7 @@ class Studio:
             self.project(s,pid,actor,True)
             require(req.per_task_micros<=req.limit_micros,"invalid_budget","Per-task cap exceeds total")
             require(all(x in self.providers for x in req.providers),"provider_unknown","Unknown configured provider")
-            currencies={x.currency for x in s.scalars(select(Budget).where(Budget.project_id==pid)).all()}
-            require(not currencies or currencies=={req.currency},"currency_conflict","One currency per project")
+            require(all(self.providers[x].get("currency")==req.currency for x in req.providers),"currency_conflict","Every provider in this grant must bill in the grant currency; use separate grants for USD/CNY")
             b=Budget(project_id=pid,currency=req.currency,limit_micros=req.limit_micros,per_task_micros=req.per_task_micros,policy=req.model_dump(),expires=time.time()+req.expires_in_hours*3600)
             s.add(b);s.flush();log(s,pid,"budget.authorized",{"id":b.id,"limit_micros":b.limit_micros,"currency":b.currency},actor)
             return public(b)
@@ -182,8 +181,9 @@ class Studio:
     def enqueue(self,pid,req:TaskInput,key:str,actor="admin"):
         require(bool(re.fullmatch(r"[A-Za-z0-9_-]{8,128}",key)),"idempotency_required","Provide an 8–128 character Idempotency-Key")
         body=req.model_dump()
-        if req.image_options is None:
-            body.pop("image_options", None)  # Preserve v0.2 idempotency fingerprints.
+        for field in ("image_options", "cloud_image_options", "video_options", "speech_options"):
+            if body.get(field) is None:
+                body.pop(field, None)  # Preserve pre-upgrade idempotency fingerprints.
         request_hash=fingerprint(body)
         with self.db.tx() as s:
             p=self.project(s,pid,actor,True)
@@ -206,11 +206,17 @@ class Studio:
             require(cfg is not None,"provider_unknown","Provider not configured")
             cfg=json.loads(json.dumps(cfg))  # Freeze without mutating administrator configuration.
             comfy=bool(cfg and cfg.get("type")=="comfyui")
-            if not local and not comfy:
+            from .cloud_api import TYPES, references as native_references, prepare as prepare_native, minimum_reserve
+            native=bool(cfg and cfg.get("type") in TYPES)
+            if not native:
+                require(not any((req.cloud_image_options,req.video_options,req.speech_options)),"unsupported_options","Native model options require the matching native provider")
+            if not local and not comfy and not native:
                 from .providers import preflight
                 preflight(cfg,req.kind)
             require(req.image_options is None or comfy,"unsupported_options","image_options are supported only by the ComfyUI image adapter")
             reference_order=list(dict.fromkeys(req.reference_ids+(shot["reference_ids"] if shot and (not comfy or req.image_options is None or req.image_options.use_shot_references) else [])))
+            if native:
+                reference_order=native_references(req,shot,cfg)
             refs=set(reference_order)
             if comfy and req.image_options and req.image_options.mask_asset_id:
                 refs.add(req.image_options.mask_asset_id)
@@ -225,6 +231,10 @@ class Studio:
                 require(a is not None and a.project_id==pid,"asset_not_found","Referenced asset missing",404)
                 assets[aid]=public(a)
             snapshot={"revision":p.revision,"title":p.title,"brief":p.brief,"style":p.style,"spec":p.spec,"content":content,"request":body,"provider_config":cfg,"assets":assets}
+            if native:
+                snapshot["reference_order"]=reference_order
+                snapshot["operation_id"]=fingerprint([pid,key])
+                prepare_native(snapshot,self.store)
             if comfy:
                 from .comfy_workflows import prepare
                 snapshot["reference_order"]=reference_order
@@ -235,6 +245,11 @@ class Studio:
                 quote["comfy"]={k:snapshot["comfy"][k] for k in ("workflow_id","workflow_hash","mode")}
                 quote["compute_cost"]="unmetered; GPU rental/electricity not included"
                 quote["requires_remote_consent"]=True
+            if native:
+                quote["api_plan"]=snapshot["api_plan"]
+                quote["minimum_reserve_micros"]=minimum_reserve(cfg,snapshot["api_plan"])
+                quote["currency"]=cfg.get("currency")
+                quote["billing_note"]="Reservation only, not a verified supplier invoice"
             if req.dry_run:
                 return {"dry_run":True,"external_calls":0,"quote":quote}
             if comfy:
@@ -268,7 +283,7 @@ class Studio:
                 require(b is not None and not b.revoked and b.expires>time.time(),"budget_required","Valid budget authorization required",403)
                 require(req.provider in b.policy["providers"] and req.kind in b.policy["kinds"],"budget_scope","Task is outside budget scope",403)
                 require(not refs or b.policy["allow_reference_upload"],"upload_not_authorized","Reference upload not authorized",403)
-                required_cap=int(cfg.get("reserve_micros",{}).get(req.kind,0))
+                required_cap=minimum_reserve(cfg,snapshot["api_plan"]) if native else int(cfg.get("reserve_micros",{}).get(req.kind,0))
                 require(required_cap>0 and req.cap_micros>=required_cap,"quote_required","Configure conservative per-request reserve and approve a sufficient cap")
                 require(cfg.get("currency")==b.currency,"currency_conflict","Provider and budget currency differ")
                 require(req.cap_micros<=b.per_task_micros and b.used_micros+req.cap_micros<=b.limit_micros,"budget_exceeded","Budget has insufficient unreserved balance",409)

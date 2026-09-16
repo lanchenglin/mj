@@ -83,6 +83,9 @@ class Shot(Contract):
     audio_asset: str | None = None
     source_in_frames: int = Field(default=0, ge=0)
     fit: Literal["contain", "cover"] = "contain"
+    # Native video audio is muted unless explicitly reviewed and selected.
+    original_audio: Literal["mute", "keep"] = "mute"
+    original_audio_gain: float = Field(default=1, ge=0, le=2)
 
 
 class AudioClip(Contract):
@@ -149,10 +152,72 @@ class ImageOptions(Contract):
     use_shot_references: bool = True
 
 
+class CloudImageOptions(Contract):
+    width: int = Field(default=1024, ge=512, le=2048)
+    height: int = Field(default=1536, ge=512, le=2048)
+    seed: int | None = Field(default=None, ge=0, le=2147483647)
+    negative_prompt: str = Field(default="", max_length=500)
+    prompt_extend: bool = False
+    use_shot_references: bool = True
+
+    @model_validator(mode="after")
+    def dimensions(self):
+        if self.width % 16 or self.height % 16:
+            raise ValueError("Cloud image dimensions must be multiples of 16")
+        return self
+
+
+class VideoReference(Contract):
+    asset_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    role: Literal["reference_image", "reference_video", "reference_audio"]
+
+
+class VideoOptions(Contract):
+    mode: Literal["text", "first_frame", "last_frame", "first_last", "reference"] = "first_frame"
+    first_frame_id: str | None = None
+    last_frame_id: str | None = None
+    references: list[VideoReference] = Field(default_factory=list, max_length=15)
+    duration_seconds: int | None = Field(default=None, ge=4, le=15)
+    resolution: Literal["480P", "768P", "2K"] = "768P"
+
+    @model_validator(mode="after")
+    def exclusive(self):
+        frames = bool(self.first_frame_id or self.last_frame_id)
+        if self.mode in ("text", "reference") and frames:
+            raise ValueError("Frame inputs and reference/text modes cannot be mixed")
+        if self.mode != "reference" and self.references:
+            raise ValueError("References require reference mode; do not mix frame and reference inputs")
+        if self.mode == "first_frame" and self.last_frame_id:
+            raise ValueError("Last frame is not allowed in first_frame mode")
+        if self.mode == "last_frame" and self.first_frame_id:
+            raise ValueError("First frame is not allowed in last_frame mode")
+        ids = [x.asset_id for x in self.references]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Duplicate video reference assets")
+        return self
+
+
+class SpeechOptions(Contract):
+    voice_id: str = Field(default="", pattern=r"^[A-Za-z0-9_-]{0,100}$")
+    speed: float = Field(default=1, ge=0.5, le=2)
+    volume: float = Field(default=1, gt=0, le=4)
+    pitch: int = Field(default=0, ge=-12, le=12)
+    pronunciation: list[str] = Field(default_factory=list, max_length=50)
+
+    @model_validator(mode="after")
+    def dictionary(self):
+        if any(not x or len(x) > 200 or "/" not in x for x in self.pronunciation):
+            raise ValueError("Each pronunciation entry must be a short word/pronunciation pair")
+        return self
+
+
 class TaskInput(Contract):
     kind: Literal["concepts", "script", "bible", "storyboard", "image", "video", "tts", "animatic", "render"]
     provider: str = "mock"
     image_options: ImageOptions | None = None
+    cloud_image_options: CloudImageOptions | None = None
+    video_options: VideoOptions | None = None
+    speech_options: SpeechOptions | None = None
     shot_id: str = ""
     reference_ids: list[str] = Field(default_factory=list, max_length=8)
     prompt: str = Field(default="", max_length=10000)

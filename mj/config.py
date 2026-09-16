@@ -59,10 +59,13 @@ class Settings:
             raise ValueError("Providers must be a JSON object keyed by provider ID")
         # Administrator-managed file; credentials are environment references only.
         for name, cfg in data.items():
-            if cfg.get("type") not in ("openai_compatible", "fal_queue", "comfyui"):
+            if cfg.get("type") not in ("openai_compatible", "fal_queue", "comfyui", "qwen_image", "minimax_h3", "minimax_tts"):
                 raise ValueError(f"Unsupported provider type: {name}")
             if "api_key" in cfg:
                 raise ValueError("Never put raw API keys in providers.json; use key_env")
+            if cfg["type"] in ("qwen_image", "minimax_h3", "minimax_tts"):
+                from .cloud_api import validate_config
+                validate_config(cfg)
             if cfg["type"] == "comfyui":
                 from .comfy_workflows import load_config
                 data[name] = load_config(cfg, Path(self.provider_file).resolve().parent)

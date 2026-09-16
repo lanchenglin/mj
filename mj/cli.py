@@ -14,12 +14,12 @@ def load_env(path:Path):
 
 def main():
     ap=argparse.ArgumentParser(description="MJ original micro-drama workbench")
-    ap.add_argument("command",choices=["init","serve","worker","doctor","comfy-check"])
+    ap.add_argument("command",choices=["init","serve","worker","doctor","comfy-check","api-check"])
     ap.add_argument("--host",default="127.0.0.1")
     ap.add_argument("--port",type=int,default=8080)
     ap.add_argument("--with-worker",action="store_true",help="Offline demo only; production uses a separate worker")
     ap.add_argument("--once",action="store_true")
-    ap.add_argument("--provider",help="Administrator-configured ComfyUI provider ID")
+    ap.add_argument("--provider",help="Administrator-configured provider ID")
     args=ap.parse_args()
     if args.command=="init":
         env=Path(".env")
@@ -33,6 +33,15 @@ def main():
     load_env(Path(".env"))
     from .config import Settings
     settings=Settings.env()
+    if args.command=="api-check":
+        import json
+        from .cloud_api import TYPES, public_config
+        configs=settings.providers()
+        if args.provider and args.provider not in configs:raise SystemExit("Unknown provider")
+        results=[public_config(n,c) for n,c in configs.items() if c["type"] in TYPES and (not args.provider or n==args.provider)]
+        print(json.dumps({"scope":"local_configuration_only","network_calls":0,"providers":results,
+                          "note":"Positive reserve/rates, account access, budget and review gates still required"},ensure_ascii=False,indent=2))
+        return
     if args.command=="comfy-check":
         import json
         from .comfyui import check_server

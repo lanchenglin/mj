@@ -74,7 +74,7 @@ def create_app(settings:Settings|None=None) -> FastAPI:
         yield
         studio.db.engine.dispose()
 
-    app=FastAPI(title="MJ Original Drama Studio",version="0.3.0",lifespan=lifespan)
+    app=FastAPI(title="MJ Original Drama Studio",version="0.4.0",lifespan=lifespan)
     app.state.studio=studio
 
     @app.exception_handler(Problem)
@@ -120,7 +120,7 @@ def create_app(settings:Settings|None=None) -> FastAPI:
 
     @app.get("/health")
     def health():
-        return {"status":"ok","version":"0.3.0","mode":studio.settings.mode}
+        return {"status":"ok","version":"0.4.0","mode":studio.settings.mode}
 
     @app.post("/api/v1/login")
     def login(req:Login,request:Request):
@@ -155,16 +155,25 @@ def create_app(settings:Settings|None=None) -> FastAPI:
     def settings_view(user=Depends(actor)):
         import os
         configs=[]
+        from .cloud_api import TYPES, public_config
         for name,cfg in studio.providers.items():
+            if cfg["type"] in TYPES:
+                configs.append(public_config(name,cfg))
+                continue
             if cfg["type"]=="comfyui":
                 configs.append({"id":name,"type":"comfyui","key_present":cfg.get("auth","none")=="none" or bool(os.getenv(cfg.get("key_env",""))),"auth_required":cfg.get("auth","none")!="none","quality_verified":False,"default_workflow":cfg["default_workflow"],"default_size":cfg.get("default_size",[768,1024]),"workflows":[{"id":wid,"title":w["manifest"].get("title",wid),"mode":w["manifest"]["mode"],"references":w["manifest"]["reference_count"],"sha256":w["sha256"]} for wid,w in cfg["workflows"].items()]})
                 continue
-            configs.append({"id":name,"type":cfg["type"],"models":cfg.get("models",{}),"endpoint":cfg.get("endpoint"),"currency":cfg.get("currency"),"reserve_micros":cfg.get("reserve_micros",{}),"key_present":bool(os.getenv(cfg["key_env"])),"quality_verified":False})
+            kinds=["video"] if cfg["type"]=="fal_queue" else (["concepts","script","bible","storyboard"] if cfg.get("models",{}).get("text") else [])+[k for k in ("image","tts") if cfg.get("models",{}).get(k)]
+            configs.append({"id":name,"type":cfg["type"],"kinds":kinds,"models":cfg.get("models",{}),"endpoint":cfg.get("endpoint"),"currency":cfg.get("currency"),"reserve_micros":cfg.get("reserve_micros",{}),"key_present":bool(os.getenv(cfg["key_env"])) ,"quality_verified":False})
         return {"mode":studio.settings.mode,"external_enabled":studio.settings.external_enabled,"comfyui_enabled":studio.settings.comfyui_enabled,"providers":configs,"mock_notice":"MOCK 只验证工程链路，不代表真实模型画质与配音。"}
 
     @app.post("/api/v1/providers/{name}/check")
     def check_provider(name:str,user=Depends(actor)):
         cfg=studio.providers.get(name)
+        from .cloud_api import TYPES, validate_config, public_config
+        if cfg and cfg.get("type") in TYPES:
+            validate_config(cfg)
+            return {"ok":public_config(name,cfg)["key_present"],"scope":"local_configuration_only","network_calls":0,"generation_calls":0,"quality_verified":False,"message":"Config checked locally; no paid capability probe or account verification performed"}
         require(cfg is not None and cfg.get("type")=="comfyui","provider_unknown","Select an administrator-configured ComfyUI provider")
         require(studio.settings.comfyui_enabled,"comfyui_disabled","Enable MJ_COMFYUI_ENABLED before contacting the GPU",403)
         from .comfyui import check_server
@@ -317,6 +326,7 @@ def create_app(settings:Settings|None=None) -> FastAPI:
             if not t.remote and t.snapshot.get("provider_config",{}).get("type")=="comfyui":
                 t.remote={"lookup":True,"client_id":t.snapshot["comfy"]["client_id"]}
             require(t.remote,"remote_id_required","No recoverable remote ID. Check provider billing; this operation will not resubmit",409)
+            t.remote={**t.remote,"resume_at":time.time()}
             t.state="submitted";t.next_run=0;log(s,pid,"task.reconcile",{"task_id":tid},user)
             return task_public(t)
 
@@ -344,7 +354,7 @@ def create_app(settings:Settings|None=None) -> FastAPI:
                 approval=s.scalar(select(Approval).where(Approval.project_id==pid,Approval.gate=="G4",Approval.task_id==tid))
                 require(approval is not None and studio.approval_current(s,approval,studio.revision(s,p).content),"final_approval_required","G4 final review required",409)
             all_tasks=s.scalars(select(Task).where(Task.project_id==pid)).all()
-            cost={"tasks":[{"id":x.id,"provider":x.provider,"fee_state":x.fee_state,"reserved_micros":x.cap_micros,"settled_micros":x.settled_micros} for x in all_tasks],"local_compute_cost":"not measured","note":"Unknown costs are not zero"}
+            cost={"tasks":[{"id":x.id,"provider":x.provider,"currency":s.get(Budget,x.budget_id).currency if x.budget_id else None,"usage":(x.result or {}).get("usage",{}),"fee_state":x.fee_state,"reserved_micros":x.cap_micros,"settled_micros":x.settled_micros} for x in all_tasks],"local_compute_cost":"not measured","note":"Unknown costs are not zero"}
             path=export_bundle(studio.store.root/"jobs"/t.result["directory"],t.result,cost,t.snapshot["assets"],studio.store)
         return FileResponse(path,media_type="application/zip",filename="mj-preview-project.zip" if mock else "mj-release-project.zip")
 

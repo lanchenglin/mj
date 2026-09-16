@@ -1,0 +1,92 @@
+{
+  "text-api": {
+    "type": "openai_compatible",
+    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "hosts": [
+      "dashscope.aliyuncs.com"
+    ],
+    "key_env": "MJ_QWEN_API_KEY",
+    "models": {
+      "text": "qwen-plus"
+    },
+    "currency": "CNY",
+    "reserve_micros": {
+      "concepts": 0,
+      "script": 0,
+      "bible": 0,
+      "storyboard": 0
+    }
+  },
+  "qwen-images": {
+    "type": "qwen_image",
+    "base_url": "https://dashscope.aliyuncs.com",
+    "hosts": [
+      "dashscope.aliyuncs.com"
+    ],
+    "download_hosts": [
+      "dashscope-result-bj.oss-cn-beijing.aliyuncs.com",
+      "dashscope-result-sz.oss-cn-shenzhen.aliyuncs.com",
+      "dashscope-result-hz.oss-cn-hangzhou.aliyuncs.com"
+    ],
+    "key_env": "MJ_QWEN_API_KEY",
+    "models": {
+      "image": "qwen-image-2.0-pro"
+    },
+    "currency": "CNY",
+    "reserve_micros": {
+      "image": 0
+    },
+    "pricing": {
+      "per_image_micros": 0
+    },
+    "max_inflight": 1,
+    "remote_timeout_seconds": 1800
+  },
+  "h3-video": {
+    "type": "minimax_h3",
+    "base_url": "https://api.minimax.io",
+    "hosts": [
+      "api.minimax.io"
+    ],
+    "download_hosts": [
+      "cdn.hailuoai.com"
+    ],
+    "key_env": "MJ_MINIMAX_API_KEY",
+    "models": {
+      "video": "MiniMax-H3"
+    },
+    "currency": "USD",
+    "reserve_micros": {
+      "video": 0
+    },
+    "pricing": {
+      "per_output_second_micros": 0,
+      "per_input_second_micros": 0
+    },
+    "max_inflight": 1,
+    "remote_timeout_seconds": 3600
+  },
+  "minimax-narration": {
+    "type": "minimax_tts",
+    "base_url": "https://api.minimax.io",
+    "hosts": [
+      "api.minimax.io"
+    ],
+    "download_hosts": [],
+    "key_env": "MJ_MINIMAX_API_KEY",
+    "models": {
+      "tts": "speech-2.8-hd"
+    },
+    "default_voice": "",
+    "voices": [],
+    "currency": "USD",
+    "reserve_micros": {
+      "tts": 0
+    },
+    "pricing": {
+      "per_1000_characters_micros": 0
+    },
+    "max_inflight": 1,
+    "remote_timeout_seconds": 1800
+  }
+}

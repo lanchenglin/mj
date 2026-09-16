@@ -1,28 +1,34 @@
-# MJ v0.3 · ComfyUI 自托管生图接入
+# MJ · 原创漫剧工作台 v0.4
 
-本次在 v0.2 基础上新增独立 GPU 服务器接入：文生图、参考图改图、蒙版重绘、不可变工作流、查回原任务、候选审核与安全传输。**未实际部署到用户服务器、未验证真实模型画质。**
+**当前路线：MJ＋云端图片＋H3 API＋独立旁白。**文本、图像、视频和声音均通过 API 调用；ComfyUI 保留为可选独立后端，默认无需部署。MJ 本身只需要 CPU 服务器、数据库和 FFmpeg，不在业务进程加载 GPU 模型。
 
-- [ComfyUI 分服务器部署与使用](docs/08-comfyui-deployment.md)
-- [v0.3 实际测试与未验证项](docs/09-comfyui-verification.md)
-- [私网供应商配置样例](providers.comfyui.example.json)
-- [Nginx 认证代理样例](deploy/comfyui/nginx.conf.example)
+从原创构想、可审核剧本、角色设定到分镜、候选素材、独立声音和成片合成。现有 API/Worker/Web 及工程链路有测试，**不代表真实模型效果、角色一致性或首条正式漫剧已验收**。本次付费模型调用为0。
 
-云模型与 ComfyUI 使用独立开关；自托管费用记为未计量，不虚构免费账单。模型权重不随仓库分发。以下 v0.2 使用说明仍适用，其验证数字是历史记录。
+## 先读这两份
 
----
+- [v0.4 API 配置、制作顺序与恢复规则](docs/10-api-first.md)
+- [v0.4 实际验证记录与未验证项](docs/11-api-verification.md)
+- [云 API 配置样例](providers.cloud.example.json)：文本 / Qwen图片 / H3视频 / MiniMax旁白。
+- [可选 ComfyUI 独立部署](docs/08-comfyui-deployment.md)：沿用 v0.3，不删除、不强制启用。
 
-# MJ · 漫境原创漫剧工作台
+## API 链路
 
-**v0.2.0 开发版**。从原创构想、剧本和角色设定，到分镜、候选素材、独立声音、预演和成片合成。先做原创漫剧，不包含影视原片检索或自动发布。
+```text
+原创需求 → 文本API/人工编辑 → 故事与分镜批准
+      → Qwen图片API：角色、场景、参考编辑、分镜图
+      → H3 API：按镜头生成视频（首/尾帧或多素材参考，互斥）
+      → 独立TTS：已保存的分镜台词 → 试听/选用
+      → MJ：候选审核、局部重做、字幕、多轨混音、FFmpeg
+      → 15秒样片批准 → 全片制作 → 120秒视频与项目包
+```
 
-这次交付包含可运行的 Web/API/Worker、数据库迁移、模拟/外部服务适配、FFmpeg 合成及测试。**工程链路已测试，不等于真实模型制作的漫剧已经验收**：没有调用付费模型，没有验证真实人物动作、角色一致性与中文音色，也没有把占位卡片称为正式作品。
+新任务冻结模型、参数、参考顺序、声音与台词；收到结果只保存待审核候选，不自动覆盖角色或分镜。H3原生音轨默认不入片；保留原声与选定独立旁白不能同时开启。改台词会阻止继续用旧TTS，改字幕样式不会重新生成视频。
 
-## 先运行离线工作台
+## 离线运行（不需要 API Key）
 
-需要 Python 3.11+、FFmpeg/ffprobe、fontconfig 和 Noto Sans CJK 字体；Linux 优先。前端是随包提供的 HTML/CSS/ES modules，不需要 Node.js、npm、CDN 或前端构建。
+需要 Python 3.11+、FFmpeg/ffprobe、fontconfig、Noto Sans CJK 字体。前端是随包提供的 HTML/CSS/ES modules，不需要 npm/CDN 或前端构建。
 
 ```bash
-# 在解压后的源码目录，或含完整实现的仓库检出目录中执行
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .
@@ -31,64 +37,63 @@ python -m mj.cli doctor
 python -m mj.cli serve --with-worker --port 8080
 ```
 
-浏览器打开 `http://127.0.0.1:8080`。初始化会以仅当前用户可读写的权限创建 `.env`，请在本机查看 `MJ_ADMIN_PASSWORD`，不要提交或转发该文件。端口占用时改成其他端口。Windows 建议 Docker/WSL；当前没有原生 Windows 实测记录。
+打开 `http://127.0.0.1:8080`。首次 init 使用0600权限创建 `.env`，管理员密码在服务器本地读取，不贴到聊天、日志或Git。离线SQLite模式可编辑和使用自有素材、跑MOCK工程预演，但强制禁止外部生成。
 
-离线模式使用 SQLite，仅用于本地编辑、自己的素材和工程测试，**强制禁止外部调用**。点击“创建离线演示”，可以编辑 20 个镜头并制作完整 120 秒预演。模拟配音是测试音，不是中文 TTS；预演会带 MOCK 标记，无法通过真实成片批准。
+## 生产部署与云接口
 
-## 已实现的工作流
-
-1. 创建项目，自定义故事、画风、横竖画幅、时长与帧率。
-2. 手写或生成候选方案，审阅后应用；编辑剧本的动作、台词与声音归属。
-3. 管理角色、场景、道具和参考素材；编辑镜头动作及前后状态。
-4. 上传或生成图片、视频、音频；所有文件以内容哈希保存，先审核再选用。
-5. 制作完整动态分镜预演、10–20 秒相邻镜头样片，再制作全片。
-6. 每镜头替换素材、裁剪入点、调整顺序；旁白、音乐、音效独立混音。
-7. 输出干净 MP4、字幕 MP4、SRT、声音分轨、时间线、工作区、QA 和带哈希的项目包。
-
-版本冲突返回 409，模型结果不会自动覆盖工作区，晚到任务不会自动激活素材。正式人物动作镜头拒绝使用静图或 MOCK 摄像运动代替。需要真实运动的素材必须通过人工审核。
-
-## 外部服务与生产部署
-
-生产配置使用 PostgreSQL + 单独 Worker + Alembic，SQLite 不提供生产替代路径。
+生产数据库使用 PostgreSQL，独立 Worker 与 Alembic 迁移。没有新增表或列，不修改已发布的初始迁移；请先备份数据库和媒体。
 
 ```bash
-# 新目录中执行；已有 .env 不会被覆盖
+# 新目录；若存在.env则拒绝覆盖
 python scripts/init_production.py
-# 先检查 .env、providers.json、Dockerfile 和 compose.yaml
-# 安装 Docker 后执行（本次未实际验证 Docker/PG 部署）
+# 阅读/合并 providers.cloud.example.json 到 providers.json
+# 在服务器设置 Key、正数预占值、实际币种、可用声音ID
+# 安装Docker后（目标环境的部署测试仍需单独执行）：
 docker compose up --build -d
 ```
 
-Compose 只将网页端口绑定宿主机 `127.0.0.1`，数据库不发布公网端口。远程使用需要 HTTPS 反向代理或可信隧道。HTTPS 时设置 `MJ_SECURE_COOKIE=true` 和精确的 `MJ_PUBLIC_ORIGIN=https://你的域名`。
+`.env` 中配置 `MJ_PROVIDERS_FILE`、`MJ_QWEN_API_KEY`、`MJ_MINIMAX_API_KEY`；审核配置后才设 `MJ_EXTERNAL_ENABLED=true`。`MJ_COMFYUI_ENABLED=false` 可继续保留。Compose 只发布127.0.0.1:8080，不裸露数据库；跨主机网页访问用可信隧道或HTTPS反向代理。HTTPS时配置 `MJ_SECURE_COOKIE=true` 与精确 `MJ_PUBLIC_ORIGIN`。
 
-参照 `providers.example.json` 写管理员维护的 `providers.json`；密钥只能放到 `key_env` 指向的服务端环境变量。示例故意使用占位模型名、零预占值和空视频时长档位，不能当作可直接消费的配置。
+```bash
+python -m mj.cli api-check
+```
 
-当前接口适配：
-- OpenAI-compatible：`chat/completions` JSON 文本、`images/generations` / `images/edits` PNG 图片、`audio/speech` WAV。
-- fal Queue：单张分镜参考图的视频异步提交、查询与受限下载。每个模型的 endpoint、图片字段、时长档位和下载域名须按该模型文档配置；不假设所有模型同一种参数。
-- Mock：明确标记的本地结构模板、占位图、摄像运动和测试音频。
+这是**零网络请求的本地配置检查**，不是 Key 有效性、账户额度或生成效果验证。原生协议路径、配置细节和白名单见 [10](docs/10-api-first.md)。
 
-启用外部服务要同时满足：生产模式、`MJ_EXTERNAL_ENABLED=true`、有效供应商配置及凭据、用户在工作台中明确授权预算、所需阶段审批、参考图外发授权。**预算是本地准入与风险预占，不是供应商价格承诺**。结果未知时留在 `reconciling`，不自动再次 POST；费用由用户按真实账单结算。取消不代表远端停机或退款。
+示例模型使用已核对的接口名称，但预占/费率是0，TTS音色为空：**这是故意阻止未授权消费，不是开箱自动收费**。须按实际账户填正预占、创建项目预算、完成所需阶段审批。一个项目可以分别授权CNY/USD，互不挪用，不作无来源换汇。
 
-具体操作、实现差异和待验证项见 [实现与运行说明](docs/06-implementation.md)。
+## 实现范围
 
-## 测试与验证
+| 模块 | 当前范围 |
+|---|---|
+| 创作 | 项目、三候选方案、结构化剧本、角色/场景/道具与分镜 |
+| 图片 | Qwen2.0同步文生图/最多3图参考编辑；保留兼容图片API和ComfyUI |
+| 视频 | MiniMax H3 V2文字/首帧/尾帧/首尾帧/参考模式；保留原fal队列 |
+| 旁白 | MiniMax Speech2.8非流式、音色/语速/音调/发音词典；保留兼容TTS |
+| 任务 | 幂等、版本冻结、预算预占、已知ID查单、结果暂存、取消晚到候选 |
+| 后期 | 帧级视频时间线、独立音轨、中文分句、合成和哈希导出包 |
+| 安全 | 登录/CSRF/所有权、管理员端点白名单、TLS/IP固定、下载不携带API密钥 |
+
+原生视频发出请求但未取得ID时会停在待核对，不盲目重试；图片取得URL后下载失败也不会重新生图。收到usage不等于费用已结算，仍按真实账单证据登记。未知任务继续占并发额度。没有“自动永久授权”或“失败一定免费”的假设。
+
+当前字幕按实测声音长度比例排时，不是词级对齐；人物动作与音色需人工审核；精确口型、自动拆分原生声音、复杂视频转场、多租户SaaS、自动发布不在本次完成范围。
+
+## 测试
 
 ```bash
 pip install -e '.[test]'
-python -m pytest
-node --check mj/web/app.js   # 可选：仅检查 JS 语法
+python -m pytest --disable-warnings
+node --check mj/web/app.js
+node --check mj/web/cloud-ui.js
 PYTHONPATH=. python scripts/verify_120s.py
+# Chromium进程内组件检查，不代表真实HTTP/CSP联调
+PYTHONPATH=. python scripts/browser_cloud_check.py
 ```
 
-浏览器冒烟测试见 `scripts/browser_check.py`，使用环境变量 `MJ_TEST_PASSWORD`，可通过 `MJ_TEST_URL` 连接实际运行的演示服务。本次浏览器网络被环境限制，因此实测采用 `MJ_BROWSER_BRIDGE=1` 的 TestClient 进程内测试桥；它验证真实浏览器交互与后端接口，但不等于部署后的 HTTP/CSP 联调。
+v0.4新增原生协议/任务/媒体测试，所有远端网络均拦截到合成协议桩；实际执行FFmpeg检查15秒与120秒工程输出。细目与未验证项以 [11](docs/11-api-verification.md) 为准，不沿用过去未核验数字，也不把测试数量等同初始大纲全部验收。
 
-[本次实测记录](docs/verification.json) 与 [验证说明](docs/07-verification.md) 区分通过、模拟与未运行项。旧大纲中的 T01–T24 是更广的验收计划，不能将本次测试数直接等同于全部计划完成。
+## 历史、许可与升级
 
-## 范围与许可
+Git仓库保留原 `docs/00–05` 目标设计；v0.2实际说明为06–07、ComfyUI为08–09、当前API路线为10–11。发布的应用ZIP不包含用户数据/权重/字体；原始规划文件在Git中保留。
 
-本版采用独立实现，没有复制 ArcReel/Toonflow/OpenMontage 的代码，也没有把 video-use 的源文件混入 MJ。video-use 仅作为后期架构研究参考；对其“字幕最后合成”等思想进行了独立实现。
-
-MJ 自有代码的对外分发许可证仍由仓库所有者决定，本次不擅自添加项目级 LICENSE。依赖、FFmpeg 构建、模型服务、参考图片、声音和音乐的许可需分别核查。字体通过系统包安装，不随源码分发字体文件。
-
-保留原有 `docs/00–05` 作为目标设计；v0.2 的实际实现与限制以 `docs/06–07` 为准。本源码交付包只包含本次实现文件；原始规划文件仍在 GitHub 规划提交中。
+没有复制上游完整平台业务代码。MJ自有代码许可证仍由仓库所有者选择，依赖、FFmpeg构建、模型服务、参考素材与声音许可分别核查。不得上传.env、providers.json、数据库、密钥和用户媒体。

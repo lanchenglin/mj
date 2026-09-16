@@ -11,6 +11,7 @@ import httpx
 from sqlalchemy import select, update, text, case
 from .db import Asset, Budget, Task, log, public
 from . import media, providers
+from .cloud_api import TYPES as NATIVE_TYPES, Native
 
 
 class Worker:
@@ -48,6 +49,11 @@ class Worker:
                     count=sum(x.snapshot.get("provider_config",{}).get("base_url")==cfg["base_url"] for x in active)
                     if count>=min(cfg.get("max_inflight",1),current.get("max_inflight",1)):
                         continue
+                if candidate.state=="queued" and cfg.get("type") in NATIVE_TYPES:
+                    active=s.scalars(select(Task).where(Task.state.in_(["dispatching","running","submitted","reconciling"]))).all()
+                    count=sum(x.snapshot.get("provider_config",{}).get("base_url")==cfg["base_url"] and x.snapshot.get("provider_config",{}).get("type")==cfg["type"] for x in active)
+                    if count>=cfg.get("max_inflight",1):
+                        continue
                 t=candidate;break
             if t is None:
                 return None
@@ -83,6 +89,10 @@ class Worker:
                 t.error=""
             if error:
                 t.error=str(error)[:1200]
+                if t.snapshot.get("provider_config",{}).get("type") in NATIVE_TYPES:
+                    # Never log an HTTP exception containing a signed URL or bearer value.
+                    if not isinstance(error,(providers.UnknownSubmission,)) and not getattr(error,"safe_failure",False):
+                        t.error="Native API processing failed; inspect the staged local media and original request ID"
                 t.state="reconciling" if unknown else ("cancelled" if t.cancel_requested else "failed")
             elif result.get("remote"):
                 t.remote=result["remote"];t.state="submitted";t.next_run=time.time()+3
@@ -100,6 +110,8 @@ class Worker:
                     t.result={"asset_id":a.id,"mock":a.mock,"late_cancelled":t.cancel_requested}
                     if result.get("provenance"):
                         t.result["provenance"]=result["provenance"]
+                    if result.get("usage"):
+                        t.result["usage"]=result["usage"]
                 else:
                     t.result=result
                 t.state="cancelled" if t.cancel_requested else "succeeded"
@@ -136,7 +148,21 @@ class Worker:
                 else:
                     if not self.studio.settings.external_enabled:
                         raise ValueError("External services disabled; no request sent")
-                    adapter=providers.External(job["snapshot"],self.studio.store)
+                    cfg=job["snapshot"].get("provider_config",{})
+                    if cfg.get("type") in NATIVE_TYPES:
+                        current=self.studio.providers.get(job["provider"],{})
+                        # Model/pricing remain frozen. Security policy cannot silently change.
+                        security=("type","base_url","hosts","key_env")
+                        if any(current.get(k)!=cfg.get(k) for k in security):
+                            raise providers.UnknownSubmission("Native API access policy changed; reconcile the original endpoint")
+                        if job["remote"] and time.time()-job["remote"].get("resume_at",job["created_at"])>cfg.get("remote_timeout_seconds",1800):
+                            raise providers.UnknownSubmission("Remote wait deadline exceeded; resume only after explicit reconciliation")
+                        # Current administrator-approved CDN policy applies to result downloads;
+                        # changing a hostname allowlist never resubmits a generation request.
+                        native_snapshot={**job["snapshot"],"provider_config":{**cfg,"download_hosts":current.get("download_hosts",[])}}
+                        adapter=Native(native_snapshot,self.studio.store)
+                    else:
+                        adapter=providers.External(job["snapshot"],self.studio.store)
                 result=adapter.poll(job["remote"],directory) if job["remote"] else adapter.submit(directory)
             self.finish(job,result=result)
         except providers.UnknownSubmission as exc:
