@@ -181,7 +181,10 @@ class Studio:
 
     def enqueue(self,pid,req:TaskInput,key:str,actor="admin"):
         require(bool(re.fullmatch(r"[A-Za-z0-9_-]{8,128}",key)),"idempotency_required","Provide an 8–128 character Idempotency-Key")
-        body=req.model_dump();request_hash=fingerprint(body)
+        body=req.model_dump()
+        if req.image_options is None:
+            body.pop("image_options", None)  # Preserve v0.2 idempotency fingerprints.
+        request_hash=fingerprint(body)
         with self.db.tx() as s:
             p=self.project(s,pid,actor,True)
             previous=s.scalar(select(Task).where(Task.project_id==pid,Task.idempotency_key==key))
@@ -201,12 +204,16 @@ class Studio:
             local=req.kind in ("animatic","render") or req.provider=="mock"
             cfg={} if local else self.providers.get(req.provider)
             require(cfg is not None,"provider_unknown","Provider not configured")
-            if not local:
+            cfg=json.loads(json.dumps(cfg))  # Freeze without mutating administrator configuration.
+            comfy=bool(cfg and cfg.get("type")=="comfyui")
+            if not local and not comfy:
                 from .providers import preflight
                 preflight(cfg,req.kind)
-            refs=set(req.reference_ids)
-            if shot:
-                refs.update(shot["reference_ids"])
+            require(req.image_options is None or comfy,"unsupported_options","image_options are supported only by the ComfyUI image adapter")
+            reference_order=list(dict.fromkeys(req.reference_ids+(shot["reference_ids"] if shot and (not comfy or req.image_options is None or req.image_options.use_shot_references) else [])))
+            refs=set(reference_order)
+            if comfy and req.image_options and req.image_options.mask_asset_id:
+                refs.add(req.image_options.mask_asset_id)
             if req.kind in ("animatic","render"):
                 for sh in content["shots"]:
                     refs.update(sh["reference_ids"])
@@ -218,10 +225,25 @@ class Studio:
                 require(a is not None and a.project_id==pid,"asset_not_found","Referenced asset missing",404)
                 assets[aid]=public(a)
             snapshot={"revision":p.revision,"title":p.title,"brief":p.brief,"style":p.style,"spec":p.spec,"content":content,"request":body,"provider_config":cfg,"assets":assets}
-            quote={"local":local,"cap_micros":req.cap_micros,"references":list(refs),"input_hash":fingerprint(snapshot),"requires_paid_authorization":not local}
+            if comfy:
+                from .comfy_workflows import prepare
+                snapshot["reference_order"]=reference_order
+                prepare(snapshot,fingerprint([pid,key]))
+                require(not req.budget_id and req.cap_micros==0,"self_hosted_budget","Self-hosted ComfyUI uses explicit resource consent, not a fabricated API bill")
+            quote={"local":local,"self_hosted":comfy,"cap_micros":req.cap_micros,"references":reference_order,"input_hash":fingerprint(snapshot),"requires_paid_authorization":not local and not comfy}
+            if comfy:
+                quote["comfy"]={k:snapshot["comfy"][k] for k in ("workflow_id","workflow_hash","mode")}
+                quote["compute_cost"]="unmetered; GPU rental/electricity not included"
+                quote["requires_remote_consent"]=True
             if req.dry_run:
                 return {"dry_run":True,"external_calls":0,"quote":quote}
-            if not local:
+            if comfy:
+                require(self.settings.comfyui_enabled,"comfyui_disabled","Administrator has not enabled self-hosted ComfyUI processing",403)
+                require(req.image_options and req.image_options.allow_remote_processing,"remote_consent_required","Approve sending this prompt and the selected references/mask to the configured GPU server",403)
+                require(self.has_gate(s,p,content,"G1"),"approval_required","G1 story approval required",409)
+                count=len(s.scalars(select(Task.id).where(Task.project_id==pid,Task.provider==req.provider,Task.state.in_(["queued","dispatching","submitted","running","reconciling"]))).all())
+                require(count<100,"queue_full","At most 100 outstanding ComfyUI tasks per project",409)
+            if not local and not comfy:
                 require(self.settings.external_enabled,"paid_disabled","External calls disabled by administrator",403)
                 gate="G2" if req.kind=="video" else "G1"
                 if req.kind not in ("concepts","script"):
@@ -251,7 +273,7 @@ class Studio:
                 require(cfg.get("currency")==b.currency,"currency_conflict","Provider and budget currency differ")
                 require(req.cap_micros<=b.per_task_micros and b.used_micros+req.cap_micros<=b.limit_micros,"budget_exceeded","Budget has insufficient unreserved balance",409)
                 b.used_micros+=req.cap_micros
-            t=Task(project_id=pid,kind=req.kind,provider="local" if req.kind in ("animatic","render") else req.provider,input_hash=fingerprint(snapshot),request_hash=request_hash,idempotency_key=key,snapshot=snapshot,revision=p.revision,budget_id=None if local else req.budget_id,cap_micros=0 if local else req.cap_micros,fee_state="free" if local else "reserved")
+            t=Task(project_id=pid,kind=req.kind,provider="local" if req.kind in ("animatic","render") else req.provider,input_hash=fingerprint(snapshot),request_hash=request_hash,idempotency_key=key,snapshot=snapshot,revision=p.revision,budget_id=None if local or comfy else req.budget_id,cap_micros=0 if local or comfy else req.cap_micros,fee_state="unmetered" if comfy else ("free" if local else "reserved"))
             s.add(t);s.flush();log(s,pid,"task.queued",{"task_id":t.id,"kind":t.kind,"input_hash":t.input_hash,"cap_micros":t.cap_micros},actor)
             return public(t)
 

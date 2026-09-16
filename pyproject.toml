@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mj-studio"
-version = "0.2.0"
+version = "0.3.0"
 description = "Auditable original micro-drama production workbench"
 requires-python = ">=3.11"
 dependencies = [
@@ -20,7 +20,7 @@ mj = "mj.cli:main"
 [tool.setuptools.packages.find]
 include = ["mj*"]
 [tool.setuptools.package-data]
-mj = ["web/*"]
+mj = ["web/*", "workflows/comfyui/*.json"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"

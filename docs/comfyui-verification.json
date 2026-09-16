@@ -1,0 +1,46 @@
+{
+  "version": "0.3.0",
+  "date": "2026-09-16",
+  "base_commit": "55cab4d9d269d3fa32a9919ad4e5fc298d62702b",
+  "pytest": {
+    "command": "python -m pytest -vv -o faulthandler_timeout=15",
+    "passed": 106,
+    "failed": 0,
+    "summary": "106 passed in 28.50s",
+    "baseline_passed": 51,
+    "comfy_tests": 55
+  },
+  "earlier_full_runs": "Two invocations timed out (45s/90s); final verbose run completed; cause not established.",
+  "javascript_syntax": "passed",
+  "wheel": "built; contains all three workflow manifests",
+  "http_protocol": "real loopback TCP HTTP with synthetic Comfy-shaped responses; upload/prompt/history/view round-trip passed, not real Comfy/GPU",
+  "browser": {
+    "transport": "in-process component bridge (HTTP/CSP NOT verified)",
+    "page_errors": [],
+    "external_requests": 0,
+    "gpu_generation_calls": 0,
+    "comfyui_enabled": false,
+    "mobile_overflow": false,
+    "tested": [
+      "login through TestClient",
+      "configured workflows",
+      "reference selection fields",
+      "inpaint mask fields",
+      "hidden cloud budget",
+      "text dry-run",
+      "provider status",
+      "mobile layout"
+    ]
+  },
+  "live_browser": "attempted; ERR_BLOCKED_BY_ADMINISTRATOR on loopback; HTTP/CSP/TLS not verified",
+  "gpu_generation_calls": 0,
+  "external_paid_calls": 0,
+  "not_verified": [
+    "actual ComfyUI installation and GPU inference",
+    "character consistency and inpainting image quality",
+    "PostgreSQL advisory lock/concurrency integration",
+    "Docker/systemd/Nginx deployment and HTTPS",
+    "all original production requirements",
+    "full 120-second render not rerun this iteration; original small FFmpeg regressions passed"
+  ]
+}

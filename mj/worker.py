@@ -8,7 +8,7 @@ from __future__ import annotations
 import threading
 import time
 import httpx
-from sqlalchemy import select, update
+from sqlalchemy import select, update, text, case
 from .db import Asset, Budget, Task, log, public
 from . import media, providers
 
@@ -31,8 +31,25 @@ class Worker:
     def claim(self):
         self.recover()
         with self.db.tx() as s:
-            t=s.scalar(select(Task).where(Task.state.in_(["queued","submitted"]),Task.next_run<=time.time()).order_by(Task.created_at).with_for_update(skip_locked=True).limit(1))
-            if not t:
+            # Short shared lock serializes admission across PG workers, never network I/O.
+            if not self.db.sqlite:
+                s.execute(text("SELECT pg_advisory_xact_lock(1296704335)"))
+            candidates=s.scalars(select(Task).where(Task.state.in_(["queued","submitted"]),Task.next_run<=time.time()).order_by(case((Task.state=="submitted",0),else_=1),Task.created_at).with_for_update(skip_locked=True).limit(100)).all()
+            t=None
+            for candidate in candidates:
+                cfg=candidate.snapshot.get("provider_config",{})
+                if candidate.state=="queued" and cfg.get("type")=="comfyui":
+                    current=self.studio.providers.get(candidate.provider,{})
+                    if not self.studio.settings.comfyui_enabled or current.get("type")!="comfyui":
+                        candidate.state="cancelled";candidate.cancel_requested=True
+                        log(s,candidate.project_id,"task.authorization_expired",{"task_id":candidate.id})
+                        continue
+                    active=s.scalars(select(Task).where(Task.state.in_(["dispatching","running","submitted","reconciling"]))).all()
+                    count=sum(x.snapshot.get("provider_config",{}).get("base_url")==cfg["base_url"] for x in active)
+                    if count>=min(cfg.get("max_inflight",1),current.get("max_inflight",1)):
+                        continue
+                t=candidate;break
+            if t is None:
                 return None
             if t.state == "queued" and t.budget_id:
                 b=s.scalar(select(Budget).where(Budget.id==t.budget_id).with_for_update())
@@ -62,6 +79,8 @@ class Worker:
             if t.fence!=job["fence"] or t.state not in ("running","dispatching"):
                 return False
             t.lease_until=0
+            if not error:
+                t.error=""
             if error:
                 t.error=str(error)[:1200]
                 t.state="reconciling" if unknown else ("cancelled" if t.cancel_requested else "failed")
@@ -69,12 +88,18 @@ class Worker:
                 t.remote=result["remote"];t.state="submitted";t.next_run=time.time()+3
             elif result.get("pending"):
                 t.state="submitted";t.next_run=time.time()+5
+                if result.get("progress"):
+                    t.result={"progress":result["progress"]}
             else:
                 if asset_data:
                     h,ext,info=asset_data
+                    if result.get("provenance"):
+                        info={**info,"generation":result["provenance"]}
                     a=Asset(project_id=t.project_id,kind=info["kind"],name=f"{t.kind}-{t.id[:8]}{ext}",blob_hash=h,extension=ext,info=info,mock=result["mock"],task_id=t.id,motion=result.get("motion","none"),rights="Generated under project authorization" if not result["mock"] else "MJ synthetic engineering fixture")
                     s.add(a);s.flush()
                     t.result={"asset_id":a.id,"mock":a.mock,"late_cancelled":t.cancel_requested}
+                    if result.get("provenance"):
+                        t.result["provenance"]=result["provenance"]
                 else:
                     t.result=result
                 t.state="cancelled" if t.cancel_requested else "succeeded"
@@ -96,9 +121,22 @@ class Worker:
             elif job["provider"]=="local":
                 result=media.render(job["snapshot"],self.studio.store,directory,self.studio.settings.render_timeout)
             else:
-                if not self.studio.settings.external_enabled:
-                    raise ValueError("External services disabled; no request sent")
-                adapter=providers.External(job["snapshot"],self.studio.store)
+                comfy=job["snapshot"].get("provider_config",{}).get("type")=="comfyui"
+                if comfy:
+                    from .comfyui import ComfyUI
+                    from .comfy_transport import ComfyFailure
+                    if not self.studio.settings.comfyui_enabled:
+                        raise providers.UnknownSubmission("ComfyUI processing disabled; remote job may still exist")
+                    current=self.studio.providers.get(job["provider"],{})
+                    frozen=job["snapshot"]["provider_config"]
+                    fields=("type","base_url","hosts","allowed_ips","allow_private","allow_loopback","allow_insecure_http","auth","key_env","allowed_nodes")
+                    if any(current.get(k)!=frozen.get(k) for k in fields):
+                        raise providers.UnknownSubmission("Comfy access policy changed; review original server before reconciling")
+                    adapter=ComfyUI(job["snapshot"],self.studio.store)
+                else:
+                    if not self.studio.settings.external_enabled:
+                        raise ValueError("External services disabled; no request sent")
+                    adapter=providers.External(job["snapshot"],self.studio.store)
                 result=adapter.poll(job["remote"],directory) if job["remote"] else adapter.submit(directory)
             self.finish(job,result=result)
         except providers.UnknownSubmission as exc:
@@ -111,7 +149,7 @@ class Worker:
             if external and job["remote"] and transient and time.time()-job["created_at"]<3600:
                 self.finish(job,result={"pending":True})
             else:
-                self.finish(job,error=exc,unknown=external and (not job["remote"] or transient))
+                self.finish(job,error=exc,unknown=external and (transient or (not job["remote"] and not getattr(exc,"safe_failure",False))))
         finally:
             done.set();heart.join(timeout=2)
         return True

@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "title": "SDXL 文生图 · 基础模板",
+  "mode": "text",
+  "reference_count": 0,
+  "output_node": "9",
+  "bindings": {
+    "prompt": [
+      [
+        "6",
+        "text"
+      ]
+    ],
+    "negative_prompt": [
+      [
+        "7",
+        "text"
+      ]
+    ],
+    "seed": [
+      [
+        "3",
+        "seed"
+      ]
+    ],
+    "width": [
+      [
+        "5",
+        "width"
+      ]
+    ],
+    "height": [
+      [
+        "5",
+        "height"
+      ]
+    ],
+    "filename_prefix": [
+      [
+        "9",
+        "filename_prefix"
+      ]
+    ]
+  },
+  "graph": {
+    "3": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "4",
+          0
+        ],
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ],
+        "seed": 0,
+        "steps": 25,
+        "cfg": 6,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1.0
+      }
+    },
+    "4": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "sd_xl_base_1.0.safetensors"
+      }
+    },
+    "5": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 768,
+        "height": 1024,
+        "batch_size": 1
+      }
+    },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "4",
+          1
+        ],
+        "text": ""
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "4",
+          1
+        ],
+        "text": "blurry, malformed hands"
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "4",
+          2
+        ]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "8",
+          0
+        ],
+        "filename_prefix": "mj/image"
+      }
+    }
+  },
+  "quality_note": "Protocol starter only. Install the specified licensed checkpoint and test visual quality on your GPU."
+}

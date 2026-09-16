@@ -1,0 +1,216 @@
+{
+  "version": 1,
+  "title": "SDXL 蒙版重绘 · 白改黑留",
+  "mode": "inpaint",
+  "reference_count": 1,
+  "output_node": "9",
+  "bindings": {
+    "prompt": [
+      [
+        "6",
+        "text"
+      ]
+    ],
+    "negative_prompt": [
+      [
+        "7",
+        "text"
+      ]
+    ],
+    "seed": [
+      [
+        "3",
+        "seed"
+      ]
+    ],
+    "width": [
+      [
+        "11",
+        "width"
+      ],
+      [
+        "14",
+        "width"
+      ]
+    ],
+    "height": [
+      [
+        "11",
+        "height"
+      ],
+      [
+        "14",
+        "height"
+      ]
+    ],
+    "filename_prefix": [
+      [
+        "9",
+        "filename_prefix"
+      ]
+    ],
+    "ref_0": [
+      [
+        "10",
+        "image"
+      ]
+    ],
+    "denoise": [
+      [
+        "3",
+        "denoise"
+      ]
+    ],
+    "mask": [
+      [
+        "13",
+        "image"
+      ]
+    ]
+  },
+  "graph": {
+    "3": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "4",
+          0
+        ],
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "12",
+          0
+        ],
+        "seed": 0,
+        "steps": 25,
+        "cfg": 6,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 0.75
+      }
+    },
+    "4": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "sd_xl_base_1.0.safetensors"
+      }
+    },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "4",
+          1
+        ],
+        "text": ""
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "4",
+          1
+        ],
+        "text": "blurry, malformed hands"
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "4",
+          2
+        ]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "8",
+          0
+        ],
+        "filename_prefix": "mj/image"
+      }
+    },
+    "10": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "placeholder.png"
+      }
+    },
+    "11": {
+      "class_type": "ImageScale",
+      "inputs": {
+        "image": [
+          "10",
+          0
+        ],
+        "width": 768,
+        "height": 1024,
+        "upscale_method": "lanczos",
+        "crop": "disabled"
+      }
+    },
+    "12": {
+      "class_type": "VAEEncodeForInpaint",
+      "inputs": {
+        "pixels": [
+          "11",
+          0
+        ],
+        "vae": [
+          "4",
+          2
+        ],
+        "mask": [
+          "15",
+          0
+        ],
+        "grow_mask_by": 6
+      }
+    },
+    "13": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "mask.png"
+      }
+    },
+    "14": {
+      "class_type": "ImageScale",
+      "inputs": {
+        "image": [
+          "13",
+          0
+        ],
+        "width": 768,
+        "height": 1024,
+        "upscale_method": "nearest-exact",
+        "crop": "disabled"
+      }
+    },
+    "15": {
+      "class_type": "ImageToMask",
+      "inputs": {
+        "image": [
+          "14",
+          0
+        ],
+        "channel": "red"
+      }
+    }
+  },
+  "quality_note": "Protocol starter only. Install the specified licensed checkpoint and test visual quality on your GPU."
+}

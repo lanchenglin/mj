@@ -14,11 +14,12 @@ def load_env(path:Path):
 
 def main():
     ap=argparse.ArgumentParser(description="MJ original micro-drama workbench")
-    ap.add_argument("command",choices=["init","serve","worker","doctor"])
+    ap.add_argument("command",choices=["init","serve","worker","doctor","comfy-check"])
     ap.add_argument("--host",default="127.0.0.1")
     ap.add_argument("--port",type=int,default=8080)
     ap.add_argument("--with-worker",action="store_true",help="Offline demo only; production uses a separate worker")
     ap.add_argument("--once",action="store_true")
+    ap.add_argument("--provider",help="Administrator-configured ComfyUI provider ID")
     args=ap.parse_args()
     if args.command=="init":
         env=Path(".env")
@@ -32,6 +33,15 @@ def main():
     load_env(Path(".env"))
     from .config import Settings
     settings=Settings.env()
+    if args.command=="comfy-check":
+        import json
+        from .comfyui import check_server
+        cfg=settings.providers().get(args.provider)
+        if not cfg or cfg.get("type")!="comfyui":raise SystemExit("Choose --provider with type=comfyui")
+        if not settings.comfyui_enabled:raise SystemExit("Enable MJ_COMFYUI_ENABLED before contacting the GPU")
+        result=check_server(cfg)
+        print(json.dumps(result,ensure_ascii=False,indent=2))
+        raise SystemExit(0 if result["ok"] else 1)
     if args.command=="doctor":
         import shutil
         for name in ("ffmpeg","ffprobe","fc-match"):

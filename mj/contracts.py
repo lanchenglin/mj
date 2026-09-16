@@ -137,9 +137,22 @@ class RevisionInput(Contract):
     content: Workspace
 
 
+class ImageOptions(Contract):
+    workflow: str = Field(default="", pattern=r"^[A-Za-z0-9_-]{0,64}$")
+    seed: int | None = Field(default=None, ge=0, le=2**63-1)
+    width: int | None = Field(default=None, ge=256, le=2048)
+    height: int | None = Field(default=None, ge=256, le=2048)
+    negative_prompt: str = Field(default="", max_length=4000)
+    denoise: float | None = Field(default=None, ge=0.01, le=1)
+    mask_asset_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    allow_remote_processing: bool = False
+    use_shot_references: bool = True
+
+
 class TaskInput(Contract):
     kind: Literal["concepts", "script", "bible", "storyboard", "image", "video", "tts", "animatic", "render"]
     provider: str = "mock"
+    image_options: ImageOptions | None = None
     shot_id: str = ""
     reference_ids: list[str] = Field(default_factory=list, max_length=8)
     prompt: str = Field(default="", max_length=10000)

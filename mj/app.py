@@ -74,7 +74,7 @@ def create_app(settings:Settings|None=None) -> FastAPI:
         yield
         studio.db.engine.dispose()
 
-    app=FastAPI(title="MJ Original Drama Studio",version="0.2.0",lifespan=lifespan)
+    app=FastAPI(title="MJ Original Drama Studio",version="0.3.0",lifespan=lifespan)
     app.state.studio=studio
 
     @app.exception_handler(Problem)
@@ -120,7 +120,7 @@ def create_app(settings:Settings|None=None) -> FastAPI:
 
     @app.get("/health")
     def health():
-        return {"status":"ok","version":"0.2.0","mode":studio.settings.mode}
+        return {"status":"ok","version":"0.3.0","mode":studio.settings.mode}
 
     @app.post("/api/v1/login")
     def login(req:Login,request:Request):
@@ -156,8 +156,22 @@ def create_app(settings:Settings|None=None) -> FastAPI:
         import os
         configs=[]
         for name,cfg in studio.providers.items():
+            if cfg["type"]=="comfyui":
+                configs.append({"id":name,"type":"comfyui","key_present":cfg.get("auth","none")=="none" or bool(os.getenv(cfg.get("key_env",""))),"auth_required":cfg.get("auth","none")!="none","quality_verified":False,"default_workflow":cfg["default_workflow"],"default_size":cfg.get("default_size",[768,1024]),"workflows":[{"id":wid,"title":w["manifest"].get("title",wid),"mode":w["manifest"]["mode"],"references":w["manifest"]["reference_count"],"sha256":w["sha256"]} for wid,w in cfg["workflows"].items()]})
+                continue
             configs.append({"id":name,"type":cfg["type"],"models":cfg.get("models",{}),"endpoint":cfg.get("endpoint"),"currency":cfg.get("currency"),"reserve_micros":cfg.get("reserve_micros",{}),"key_present":bool(os.getenv(cfg["key_env"])),"quality_verified":False})
-        return {"mode":studio.settings.mode,"external_enabled":studio.settings.external_enabled,"providers":configs,"mock_notice":"MOCK 只验证工程链路，不代表真实模型画质与配音。"}
+        return {"mode":studio.settings.mode,"external_enabled":studio.settings.external_enabled,"comfyui_enabled":studio.settings.comfyui_enabled,"providers":configs,"mock_notice":"MOCK 只验证工程链路，不代表真实模型画质与配音。"}
+
+    @app.post("/api/v1/providers/{name}/check")
+    def check_provider(name:str,user=Depends(actor)):
+        cfg=studio.providers.get(name)
+        require(cfg is not None and cfg.get("type")=="comfyui","provider_unknown","Select an administrator-configured ComfyUI provider")
+        require(studio.settings.comfyui_enabled,"comfyui_disabled","Enable MJ_COMFYUI_ENABLED before contacting the GPU",403)
+        from .comfyui import check_server
+        result=check_server(cfg)
+        with studio.db.tx() as s:
+            log(s,None,"comfy.checked",{"provider":name,"generation_calls":0,"ok":result["ok"]},user)
+        return result
 
     @app.get("/api/v1/projects")
     def projects(user=Depends(actor)):
@@ -299,7 +313,10 @@ def create_app(settings:Settings|None=None) -> FastAPI:
     def reconcile(pid:str,tid:str,user=Depends(actor)):
         with studio.db.tx() as s:
             t=project_task(s,pid,tid,user)
-            require(t.state=="reconciling" and t.remote,"remote_id_required","No recoverable remote ID. Check provider billing; this operation will not resubmit",409)
+            require(t.state=="reconciling","reconcile_required","Only an uncertain task can be reconciled",409)
+            if not t.remote and t.snapshot.get("provider_config",{}).get("type")=="comfyui":
+                t.remote={"lookup":True,"client_id":t.snapshot["comfy"]["client_id"]}
+            require(t.remote,"remote_id_required","No recoverable remote ID. Check provider billing; this operation will not resubmit",409)
             t.state="submitted";t.next_run=0;log(s,pid,"task.reconcile",{"task_id":tid},user)
             return task_public(t)
 

@@ -1,0 +1,28 @@
+{
+  "comfy-gpu": {
+    "type": "comfyui",
+    "base_url": "http://10.10.10.20:8188",
+    "hosts": [
+      "10.10.10.20"
+    ],
+    "allowed_ips": [
+      "10.10.10.20"
+    ],
+    "allow_private": true,
+    "allow_loopback": false,
+    "allow_insecure_http": true,
+    "auth": "none",
+    "local_models_only": true,
+    "default_size": [
+      768,
+      1024
+    ],
+    "max_inflight": 1,
+    "default_workflow": "sdxl-text",
+    "workflows": {
+      "sdxl-text": "sdxl-text.json",
+      "sdxl-reference": "sdxl-reference.json",
+      "sdxl-inpaint": "sdxl-inpaint.json"
+    }
+  }
+}

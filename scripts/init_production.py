@@ -9,7 +9,7 @@ if env.exists():
 password=secrets.token_urlsafe(24)
 values={'POSTGRES_PASSWORD':password,'MJ_DATABASE_URL':f'postgresql+psycopg://mj:{password}@postgres:5432/mj',
         'MJ_MODE':'production','MJ_DATA_DIR':'/data','MJ_ADMIN_PASSWORD':secrets.token_urlsafe(24),
-        'MJ_EXTERNAL_ENABLED':'false','MJ_PROVIDERS_FILE':'/app/providers.json',
+        'MJ_COMFYUI_ENABLED':'false','MJ_EXTERNAL_ENABLED':'false','MJ_PROVIDERS_FILE':'/app/providers.json',
         'MJ_SECURE_COOKIE':'false','MJ_PUBLIC_ORIGIN':'http://127.0.0.1:8080'}
 fd=os.open(env,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
 with os.fdopen(fd,'w') as f:

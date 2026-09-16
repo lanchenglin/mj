@@ -1,0 +1,25 @@
+# GPU host. Install ComfyUI, a compatible PyTorch build, models and this user first.
+# Check --help against your pinned ComfyUI commit before starting.
+[Unit]
+Description=MJ dedicated ComfyUI GPU backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=comfy
+Group=comfy
+WorkingDirectory=/opt/ComfyUI
+Environment=PYTHONUNBUFFERED=1
+Environment=HF_HUB_OFFLINE=1
+ExecStart=/opt/ComfyUI/.venv/bin/python main.py --listen 127.0.0.1 --port 8188 --disable-auto-launch --disable-api-nodes --disable-all-custom-nodes --input-directory /var/lib/comfyui/input --output-directory /var/lib/comfyui/output --user-directory /var/lib/comfyui/user
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+# Do not set PrivateDevices=true: CUDA needs access to GPU device files.
+# Network egress and custom nodes need separate administrator review/firewall rules.
+
+[Install]
+WantedBy=multi-user.target
