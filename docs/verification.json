@@ -60,9 +60,10 @@
   ],
   "git": {
     "core_commit": "1773b4c94315c22383d6c6cc3c1f66f88594a78d",
-    "status_commit": "276e9696a308778f799dbf57a207f71dff312cd5",
+    "implementation_commit": "e99db5e1e8cec5bf03b0904628553c29dd34660b",
     "branch": "rebuild/original-drama-v0.2",
-    "full_application_published": false,
-    "reason": "web file write blocked by platform safety check; no bypass attempted"
+    "full_application_published": true,
+    "publication_tree_verified": true,
+    "note": "This flag records source publication only; real-model/production verification remains separate."
   }
 }
