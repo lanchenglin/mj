@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+providers.json
+data
+checks
+__pycache__
+.pytest_cache
+.venv
+*.zip
+*.log

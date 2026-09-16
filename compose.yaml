@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_DB: mj
+      POSTGRES_USER: mj
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/init_production.py first}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mj -d mj"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  migrate:
+    build: .
+    env_file: .env
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - media:/data
+  api:
+    build: .
+    env_file: .env
+    command: ["python", "-m", "mj.cli", "serve", "--host", "0.0.0.0", "--port", "8080"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - media:/data
+      - ./providers.json:/app/providers.json:ro
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+  worker:
+    build: .
+    env_file: .env
+    command: ["python", "-m", "mj.cli", "worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - media:/data
+      - ./providers.json:/app/providers.json:ro
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  database:
+  media:

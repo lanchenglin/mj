@@ -1,0 +1,25 @@
+{
+  "openai-compatible": {
+    "type": "openai_compatible",
+    "base_url": "https://api.openai.com/v1",
+    "hosts": ["api.openai.com"],
+    "download_hosts": [],
+    "key_env": "MJ_OPENAI_API_KEY",
+    "models": {"text": "REPLACE_WITH_VERIFIED_TEXT_MODEL", "image": "REPLACE_WITH_VERIFIED_IMAGE_MODEL", "tts": "REPLACE_WITH_VERIFIED_TTS_MODEL"},
+    "image_options": {"size": "1024x1536", "output_format": "png"},
+    "currency": "USD",
+    "reserve_micros": {"concepts": 0, "script": 0, "bible": 0, "storyboard": 0, "image": 0, "tts": 0}
+  },
+  "fal-video": {
+    "type": "fal_queue",
+    "endpoint": "REPLACE_WITH_VERIFIED_FAL_ENDPOINT",
+    "key_env": "FAL_KEY",
+    "reference_field": "image_url",
+    "duration_field": "duration",
+    "duration_values": [],
+    "defaults": {},
+    "download_hosts": [],
+    "currency": "USD",
+    "reserve_micros": {"video": 0}
+  }
+}

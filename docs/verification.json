@@ -1,0 +1,68 @@
+{
+  "recorded_date": "2026-09-16",
+  "implementation_version": "0.2.0",
+  "python": "3.13.5",
+  "ffmpeg": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers",
+  "pytest": {
+    "passed": 51,
+    "failed": 0,
+    "last_observed_summary": "51 passed in 13.98s"
+  },
+  "javascript_syntax": "passed",
+  "alembic": {
+    "backend": "isolated SQLite",
+    "operations": [
+      "upgrade head",
+      "downgrade base",
+      "upgrade head"
+    ],
+    "passed": true
+  },
+  "browser": {
+    "transport": "in-process TestClient bridge",
+    "page_errors": [],
+    "mobile_overflow": false,
+    "tested": [
+      "login",
+      "create synthetic project",
+      "edit and save script",
+      "save bible",
+      "shot cards",
+      "mobile layout",
+      "enqueue full 120-second animatic"
+    ]
+  },
+  "render_120s": {
+    "task_id": "3babb61755e942be82639cf3b76fc374",
+    "qa": {
+      "technical_pass": true,
+      "frames": 3600,
+      "samples": 5760000,
+      "fps": 30,
+      "duration_seconds": 120.0,
+      "measured_video_duration_seconds": 120.0,
+      "mock": true,
+      "creative_review": "pending",
+      "subtitle_timing": "measured-audio-duration-proportional; human review required",
+      "real_model_quality_verified": false
+    },
+    "paid_calls": 0
+  },
+  "external_paid_calls": 0,
+  "not_verified": [
+    "real paid provider accounts and quality",
+    "real Chinese TTS and character/action consistency",
+    "PostgreSQL integration and concurrency",
+    "Docker build and deployment",
+    "live browser HTTP/TLS/CSP integration",
+    "full production security/backup recovery",
+    "all original T01-T24 acceptance requirements"
+  ],
+  "git": {
+    "core_commit": "1773b4c94315c22383d6c6cc3c1f66f88594a78d",
+    "status_commit": "276e9696a308778f799dbf57a207f71dff312cd5",
+    "branch": "rebuild/original-drama-v0.2",
+    "full_application_published": false,
+    "reason": "web file write blocked by platform safety check; no bypass attempted"
+  }
+}
